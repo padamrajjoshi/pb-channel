@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     const isDev = process.env.NODE_ENV === 'development';
     const backendUrl = isDev
       ? (process.env.BACKEND_LOCAL_API_URL || "http://127.0.0.1:8000")
-      : (process.env.BACKEND_API_URL || "https://pb-api-sigma.vercel.app");
+      : (process.env.BACKEND_API_URL || "https://pb-api.pebiglobe.com");
 
     return [
       {
