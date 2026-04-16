@@ -50,6 +50,11 @@ async function proxyRequest(
       }
     });
 
+    // Add a default User-Agent if none exists to avoid being blocked by WAFs
+    if (!headers.has("user-agent")) {
+      headers.set("user-agent", "NextJS-Proxy/1.0");
+    }
+
     let body: BodyInit | null = null;
     if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
       body = await request.text();
@@ -77,12 +82,24 @@ async function proxyRequest(
     });
   } catch (error) {
     console.error("[Proxy Error]", error);
+    
+    // Construct extra diagnostic info
+    const { path } = await params;
+    const pathStr = path.join("/");
+    const targetUrl = `${BACKEND_URL}/v1/${pathStr}${request.nextUrl.search}`;
+
     return new NextResponse(
       JSON.stringify({ 
         error: "Proxy failed to reach backend", 
-        details: error instanceof Error ? error.message : String(error) 
+        targetUrl,
+        details: error instanceof Error ? error.message : String(error),
+        troubleshooting: "This is often caused by a faulty IPv6 (AAAA) record in your DNS. If you are using Hostinger or Cloudflare, try disabling IPv6 or removing the AAAA record for pb-api.pebiglobe.com.",
+        stack: error instanceof Error ? error.stack : undefined
       }),
-      { status: 502, headers: { "Content-Type": "application/json" } }
+      { 
+        status: 502, 
+        headers: { "Content-Type": "application/json" } 
+      }
     );
   }
 }
