@@ -32,44 +32,57 @@ async function proxyRequest(
   params: Promise<{ path: string[] }>,
   method: string
 ) {
-  const { path } = await params;
-  const pathStr = path.join("/");
-  const search = request.nextUrl.search;
-  const targetUrl = `${BACKEND_URL}/v1/${pathStr}${search}`;
+  try {
+    const { path } = await params;
+    const pathStr = path.join("/");
+    const search = request.nextUrl.search;
+    const targetUrl = `${BACKEND_URL}/v1/${pathStr}${search}`;
 
-  // Forward request headers (including Cookie for authenticated requests)
-  const headers = new Headers();
-  request.headers.forEach((value, key) => {
-    // Skip headers that shouldn't be forwarded
-    if (!["host", "connection", "transfer-encoding"].includes(key.toLowerCase())) {
-      headers.set(key, value);
+    console.log(`[Proxy] ${method} ${request.nextUrl.pathname} -> ${targetUrl}`);
+
+    // Forward request headers (including Cookie for authenticated requests)
+    const headers = new Headers();
+    request.headers.forEach((value, key) => {
+      const lowKey = key.toLowerCase();
+      // Skip headers that should be managed by the proxy or fetch
+      if (!["host", "connection", "transfer-encoding", "content-length"].includes(lowKey)) {
+        headers.set(key, value);
+      }
+    });
+
+    let body: BodyInit | null = null;
+    if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+      body = await request.text();
     }
-  });
 
-  let body: BodyInit | null = null;
-  if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
-    body = await request.text();
+    const backendResponse = await fetch(targetUrl, {
+      method,
+      headers,
+      body,
+      // Follow redirects server-side so the browser never talks to backend directly
+      redirect: "follow",
+    });
+
+    // Build the response with all headers from backend
+    const responseHeaders = new Headers();
+    backendResponse.headers.forEach((value, key) => {
+      responseHeaders.append(key, value);
+    });
+
+    const responseBody = await backendResponse.arrayBuffer();
+
+    return new NextResponse(responseBody, {
+      status: backendResponse.status,
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    console.error("[Proxy Error]", error);
+    return new NextResponse(
+      JSON.stringify({ 
+        error: "Proxy failed to reach backend", 
+        details: error instanceof Error ? error.message : String(error) 
+      }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
   }
-
-  const backendResponse = await fetch(targetUrl, {
-    method,
-    headers,
-    body,
-    // Follow redirects server-side so the browser never talks to backend directly
-    redirect: "follow",
-  });
-
-  // Build the response with all headers from backend
-  const responseHeaders = new Headers();
-  backendResponse.headers.forEach((value, key) => {
-    // Forward all headers including Set-Cookie - this is the key fix!
-    responseHeaders.append(key, value);
-  });
-
-  const responseBody = await backendResponse.arrayBuffer();
-
-  return new NextResponse(responseBody, {
-    status: backendResponse.status,
-    headers: responseHeaders,
-  });
 }
