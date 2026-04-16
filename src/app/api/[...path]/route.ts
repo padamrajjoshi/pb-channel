@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_API_URL || process.env.BACKEND_LOCAL_API_URL || "http://127.0.0.1:8000";
+// BACKEND_API_URL is set in Vercel/production environment variables.
+// BACKEND_LOCAL_API_URL is used for local development only.
+// If neither is set, the proxy will fail loudly so misconfiguration is caught early.
+const BACKEND_URL = process.env.BACKEND_API_URL || process.env.BACKEND_LOCAL_API_URL;
+
+if (!BACKEND_URL) {
+  console.error("[Proxy] CRITICAL: No backend URL configured! Set BACKEND_API_URL in your environment variables.");
+}
 
 /**
  * This route handler manually proxies auth requests to the backend
@@ -32,6 +39,16 @@ async function proxyRequest(
   params: Promise<{ path: string[] }>,
   method: string
 ) {
+  if (!BACKEND_URL) {
+    return new NextResponse(
+      JSON.stringify({ 
+        error: "Proxy misconfigured", 
+        details: "BACKEND_API_URL is not set. Add it to your Vercel/production environment variables.",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
     const { path } = await params;
     const pathStr = path.join("/");
