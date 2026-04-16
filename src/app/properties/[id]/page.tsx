@@ -15,7 +15,10 @@ import {
   RefreshCw,
   Activity,
   ImagePlus,
-  Percent
+  Percent,
+  BarChart2,
+  BookOpen,
+  Table2,
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -242,7 +245,37 @@ export default function PropertyDetailPage({ params }: { params: Promise<{ id: s
                       </button>
                     </div>
 
-                    <div className="mt-8 flex gap-3">
+                    {/* OTA-specific deep links */}
+                    {(conn.ota_name?.toLowerCase() === "booking" || conn.ota_name?.toLowerCase() === "expedia") && (
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {conn.ota_name?.toLowerCase() === "booking" && (
+                          <>
+                            <Link
+                              href={`/properties/${propertyId}/connections/${conn.id}/booking`}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/20 rounded-lg text-[11px] font-bold transition-all"
+                            >
+                              <Table2 className="w-3 h-3" /> Booking Tables
+                            </Link>
+                            <Link
+                              href={`/properties/${propertyId}/connections/${conn.id}/reporting`}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-lg text-[11px] font-bold transition-all"
+                            >
+                              <BarChart2 className="w-3 h-3" /> Reports
+                            </Link>
+                          </>
+                        )}
+                        {conn.ota_name?.toLowerCase() === "expedia" && (
+                          <Link
+                            href={`/properties/${propertyId}/connections/${conn.id}/expedia`}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/10 hover:bg-violet-500/20 text-violet-600 dark:text-violet-400 border border-violet-500/20 rounded-lg text-[11px] font-bold transition-all"
+                          >
+                            <Table2 className="w-3 h-3" /> Expedia Tables
+                          </Link>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-5 flex gap-3">
                       <button
                         onClick={() => {
                           setSelectedMappingConn(conn);
