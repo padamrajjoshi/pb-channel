@@ -44,8 +44,8 @@ async function proxyRequest(
     const headers = new Headers();
     request.headers.forEach((value, key) => {
       const lowKey = key.toLowerCase();
-      // Skip headers that should be managed by the proxy or fetch
-      if (!["host", "connection", "transfer-encoding", "content-length"].includes(lowKey)) {
+      // Skip headers that should be managed by the proxy/fetch or cause conflicts
+      if (!["host", "connection", "transfer-encoding", "content-length", "referer", "origin"].includes(lowKey)) {
         headers.set(key, value);
       }
     });
