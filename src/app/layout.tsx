@@ -9,8 +9,8 @@ import { ToastProvider } from "@/components/ui/ToastProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Pebiglobe | Channel Manager",
-  description: "Advanced bidirectional OTA synchronization and revenue optimization.",
+  title: "PEBIGLOBE | CMS",
+  description: "Property Management System",
 };
 
 export default function RootLayout({

@@ -47,7 +47,7 @@ export default function StaffLoginPage() {
     setError(null);
     setSuccess(null);
     try {
-      const response = await api.post("/auth/staff/login", { email, password });
+      const response = await api.post("/auth/staff/login", { email, password, app_source: "pb-cms" });
       setTempToken(response.data.temp_token);
       setStep("otp");
       setResendTimer(60); // Start cooldown on first arrival
@@ -84,12 +84,9 @@ export default function StaffLoginPage() {
       const response = await api.post("/auth/staff/verify-2fa", {
         temp_token: tempToken,
         otp,
-        captcha_token: null
+        captcha_token: null,
+        app_source: "pb-cms"
       });
-
-      const { access_token, refresh_token } = response.data;
-      localStorage.setItem("access_token", access_token);
-      localStorage.setItem("refresh_token", refresh_token);
 
       // Save or remove email based on rememberMe
       if (rememberMe) {

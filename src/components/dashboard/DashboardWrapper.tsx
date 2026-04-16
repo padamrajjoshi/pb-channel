@@ -20,27 +20,41 @@ export function DashboardWrapper({
   const publicRoutes = ["/login", "/forgot-password", "/reset-password"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  // Load User Profile from Auth Token
-  const { profile, isLoading: isProfileLoading } = useProfile();
+  // Load User Profile from Auth Token - Only on protected routes
+  const { profile, isLoading: isProfileLoading, isError } = useProfile(isPublicRoute);
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    // We no longer check localStorage for tokens as they are stored in secure HttpOnly cookies.
+    // Instead, we wait for the useProfile hook to finish.
 
-    if (token && isPublicRoute) {
-      // Inverse Auth: Already logged in, no need for /login
-      router.push("/");
+    if (isProfileLoading) return;
+
+    if (isError) {
+      setIsAuthenticated(false);
+      setIsChecking(false);
+      if (!isPublicRoute) {
+        router.push("/login");
+      }
       return;
     }
 
-    if (!token && !isPublicRoute) {
-      // Standard Auth: Not logged in, must go to /login
+    if (profile && isPublicRoute) {
+      // Inverse Auth: Valid profile found via cookie, redirect from login to dashboard
+      router.push("/");
+      setIsAuthenticated(true);
+      setIsChecking(false);
+      return;
+    }
+
+    if (!profile && !isPublicRoute) {
+      // Standard Auth: No profile (401), send to login
       router.push("/login");
       setIsAuthenticated(false);
-    } else {
+    } else if (profile) {
       setIsAuthenticated(true);
     }
     setIsChecking(false);
-  }, [router, pathname, isPublicRoute]);
+  }, [router, pathname, isPublicRoute, profile, isProfileLoading, isError]);
 
   // If it's a public route (like login), just render children directly without the dashboard sidebar
   if (isPublicRoute) {

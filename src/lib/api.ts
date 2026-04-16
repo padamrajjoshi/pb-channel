@@ -16,8 +16,11 @@ api.interceptors.response.use(
   (error) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       if (typeof window !== "undefined") {
-        // Redirect to login if not already there, cookies are stripped serverside!
-        if (!window.location.pathname.startsWith("/login")) {
+        const isLoginPath = window.location.pathname.startsWith("/login");
+        
+        // Skip redirect if already on login page or if it's a background profile check
+        // that's expected to fail when unauthenticated.
+        if (!isLoginPath && !error.config?.url?.includes("/user/profile")) {
           window.location.href = "/login";
         }
       }

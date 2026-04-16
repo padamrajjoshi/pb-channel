@@ -150,8 +150,8 @@ export function useSettings(propertyId: string | number) {
   };
 }
 
-export function useProfile() {
-  const { data, error, mutate, isLoading } = useSWR(`/user/profile`, fetcher);
+export function useProfile(skip: boolean = false) {
+  const { data, error, mutate, isLoading } = useSWR(skip ? null : `/user/profile`, fetcher);
 
   return {
     profile: data,
