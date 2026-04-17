@@ -85,10 +85,26 @@ async function proxyRequest(
       redirect: "follow",
     });
 
-    // Build the response with all headers from backend
+    // Build the response - forward all headers from backend, but rewrite Set-Cookie
+    // to ensure cookies are stored under the FRONTEND domain (Vercel), not the backend domain.
     const responseHeaders = new Headers();
     backendResponse.headers.forEach((value, key) => {
-      responseHeaders.append(key, value);
+      if (key.toLowerCase() === "set-cookie") {
+        // Rewrite cookie: strip 'domain=...' so the browser stores it under
+        // the current origin (pb-channel / Vercel) instead of pb-api.pebiglobe.com
+        const rewritten = value
+          .replace(/;\s*domain=[^;]*/gi, "")
+          .replace(/;\s*samesite=none/gi, "; SameSite=Lax");
+        
+        // Ensure path=/ exists
+        const withPath = rewritten.includes("path=") 
+          ? rewritten 
+          : rewritten + "; Path=/";
+        
+        responseHeaders.append("Set-Cookie", withPath);
+      } else {
+        responseHeaders.append(key, value);
+      }
     });
 
     const responseBody = await backendResponse.arrayBuffer();
