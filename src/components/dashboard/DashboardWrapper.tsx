@@ -26,8 +26,12 @@ export function DashboardWrapper({
   useEffect(() => {
     if (isProfileLoading) return;
 
+    // Only do full session-clear on a genuine 401 Unauthorized.
+    // Network errors or 5xx should NOT trigger logout (token could still be valid).
+    const isUnauthorized = isError && (isError?.status === 401 || isError?.response?.status === 401);
+
     const clearSessionAndRedirect = async () => {
-      // Best-effort: tell the backend to blocklist the token and delete_cookie
+      // Tell the backend to blocklist the JTI and send delete_cookie headers
       try {
         await fetch("/api/auth/logout", {
           method: "POST",
@@ -35,23 +39,28 @@ export function DashboardWrapper({
           headers: { "Content-Type": "application/json" },
           credentials: "include",
         });
-      } catch { /* ignore — network may be down */ }
-      // Force-expire cookies client-side as a safety net
+      } catch { /* ignore — don't block redirect on network failure */ }
+      // Client-side cookie expiry as safety net
       document.cookie = "access_token=; Max-Age=0; path=/;";
       document.cookie = "refresh_token=; Max-Age=0; path=/;";
       router.push("/login");
     };
 
-    if (isError) {
+    if (isUnauthorized) {
       setIsAuthenticated(false);
       setIsChecking(false);
-      if (!isPublicRoute) {
-        clearSessionAndRedirect();
-      }
+      clearSessionAndRedirect();
+      return;
+    }
+
+    // Non-401 error (network blip, 5xx) — don't destroy the session, just wait
+    if (isError && !isUnauthorized) {
+      setIsChecking(false);
       return;
     }
 
     if (profile && isPublicRoute) {
+      // Already logged in — bounce away from /login
       router.push("/");
       setIsAuthenticated(true);
       setIsChecking(false);
@@ -59,13 +68,20 @@ export function DashboardWrapper({
     }
 
     if (!profile && !isPublicRoute) {
+      // Profile not loaded yet or genuinely unauthenticated.
+      // Just redirect — do NOT call logout (would blocklist a valid token on re-render).
+      router.push("/login");
       setIsAuthenticated(false);
-      clearSessionAndRedirect();
-    } else if (profile) {
+      setIsChecking(false);
+      return;
+    }
+
+    if (profile) {
       setIsAuthenticated(true);
     }
     setIsChecking(false);
   }, [router, pathname, isPublicRoute, profile, isProfileLoading, isError]);
+
 
   // If it's a public route (like login), just render children directly without the dashboard sidebar
   if (isPublicRoute) {
