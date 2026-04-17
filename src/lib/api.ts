@@ -1,6 +1,9 @@
 import axios from "axios";
+import { encodePath, OBFUSCATED_BASE } from "@/lib/url-map";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+// All API calls go to /{OBFUSCATED_BASE}/... — the middleware rewrites it to /api/...
+// then the proxy decodes the path segment and forwards to the backend.
+const API_BASE_URL = `/${OBFUSCATED_BASE}`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -19,7 +22,14 @@ const processQueue = (error: unknown) => {
   failedQueue = [];
 };
 
-// Auto-refresh interceptor: on 401, try /auth/refresh-token before redirecting to login
+// Obfuscated paths for auth endpoints used in the interceptor check
+const OBF_REFRESH  = encodePath("/auth/refresh-token");
+const OBF_LOGOUT   = encodePath("/auth/logout");
+const OBF_OTP      = encodePath("/auth/otp-login");
+const OBF_VERIFY   = encodePath("/auth/verify-otp");
+const OBF_LOGIN    = encodePath("/auth/login");
+
+// Auto-refresh interceptor: on 401, try refresh-token before redirecting to login
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -30,11 +40,11 @@ api.interceptors.response.use(
     const url = originalRequest?.url ?? '';
 
     const isAuthEndpoint =
-      url.includes('/auth/refresh-token') ||
-      url.includes('/auth/logout') ||
-      url.includes('/auth/otp-login') ||
-      url.includes('/auth/verify-otp') ||
-      url.includes('/auth/login');
+      url.includes(OBF_REFRESH) ||
+      url.includes(OBF_LOGOUT)  ||
+      url.includes(OBF_OTP)     ||
+      url.includes(OBF_VERIFY)  ||
+      url.includes(OBF_LOGIN);
 
     if (status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
@@ -48,7 +58,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await api.post('/auth/refresh-token');
+        await api.post(encodePath("/auth/refresh-token"));
         processQueue(null);
         return api(originalRequest);
       } catch (refreshError) {
