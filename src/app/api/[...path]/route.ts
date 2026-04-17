@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decodePath } from "@/lib/url-map";
 
 // BACKEND_API_URL is set in Vercel/production environment variables.
 // BACKEND_LOCAL_API_URL is used for local development only.
@@ -52,12 +51,11 @@ async function proxyRequest(
 
   try {
     const { path } = await params;
-    const obfuscatedPathStr = path.join("/");
-    const realPathStr = decodePath(obfuscatedPathStr); // Decode obfuscated → real
+    const pathStr = path.join("/");
     const search = request.nextUrl.search;
-    const targetUrl = `${BACKEND_URL}/v1/${realPathStr}${search}`;
+    const targetUrl = `${BACKEND_URL}/v1/${pathStr}${search}`;
 
-    console.log(`[Proxy] ${method} ${request.nextUrl.pathname} (${obfuscatedPathStr} → ${realPathStr}) -> ${targetUrl}`);
+    console.log(`[Proxy] ${method} ${request.nextUrl.pathname} -> ${targetUrl}`);
 
     // Forward request headers (including Cookie for authenticated requests)
     const headers = new Headers();
