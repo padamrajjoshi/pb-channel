@@ -24,22 +24,34 @@ export function DashboardWrapper({
   const { profile, isLoading: isProfileLoading, isError } = useProfile(isPublicRoute);
 
   useEffect(() => {
-    // We no longer check localStorage for tokens as they are stored in secure HttpOnly cookies.
-    // Instead, we wait for the useProfile hook to finish.
-
     if (isProfileLoading) return;
+
+    const clearSessionAndRedirect = async () => {
+      // Best-effort: tell the backend to blocklist the token and delete_cookie
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({}),
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+        });
+      } catch { /* ignore — network may be down */ }
+      // Force-expire cookies client-side as a safety net
+      document.cookie = "access_token=; Max-Age=0; path=/;";
+      document.cookie = "refresh_token=; Max-Age=0; path=/;";
+      router.push("/login");
+    };
 
     if (isError) {
       setIsAuthenticated(false);
       setIsChecking(false);
       if (!isPublicRoute) {
-        router.push("/login");
+        clearSessionAndRedirect();
       }
       return;
     }
 
     if (profile && isPublicRoute) {
-      // Inverse Auth: Valid profile found via cookie, redirect from login to dashboard
       router.push("/");
       setIsAuthenticated(true);
       setIsChecking(false);
@@ -47,9 +59,8 @@ export function DashboardWrapper({
     }
 
     if (!profile && !isPublicRoute) {
-      // Standard Auth: No profile (401), send to login
-      router.push("/login");
       setIsAuthenticated(false);
+      clearSessionAndRedirect();
     } else if (profile) {
       setIsAuthenticated(true);
     }
