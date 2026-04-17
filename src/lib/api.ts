@@ -10,27 +10,64 @@ export const api = axios.create({
   },
 });
 
-// Zero-Trust Interceptor to handle authentication failures natively over cookies
+// Token refresh state
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (v: unknown) => void; reject: (e: unknown) => void }> = [];
+
+const processQueue = (error: unknown) => {
+  failedQueue.forEach(({ resolve, reject }) => error ? reject(error) : resolve(undefined));
+  failedQueue = [];
+};
+
+// Auto-refresh interceptor: on 401, try /auth/refresh-token before redirecting to login
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      if (typeof window !== "undefined") {
-        const isLoginPath = window.location.pathname.startsWith("/login");
-        
-        // Skip redirect if already on login page or if it's a background profile check
-        // that's expected to fail when unauthenticated.
-        if (!isLoginPath && !error.config?.url?.includes("/user/profile")) {
-          window.location.href = "/login";
+  async (error) => {
+    if (!axios.isAxiosError(error)) return Promise.reject(error);
+
+    const originalRequest = error.config as typeof error.config & { _retry?: boolean };
+    const status = error.response?.status;
+    const url = originalRequest?.url ?? '';
+
+    const isAuthEndpoint =
+      url.includes('/auth/refresh-token') ||
+      url.includes('/auth/logout') ||
+      url.includes('/auth/otp-login') ||
+      url.includes('/auth/verify-otp') ||
+      url.includes('/auth/login');
+
+    if (status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await api.post('/auth/refresh-token');
+        processQueue(null);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+          window.location.href = '/login';
         }
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
+
     return Promise.reject(error);
   }
 );
 
 // Helper to handle API errors consistently
-export const handleApiError = (error: any) => {
+export const handleApiError = (error: unknown) => {
   if (axios.isAxiosError(error)) {
     return error.response?.data?.detail || error.message;
   }
