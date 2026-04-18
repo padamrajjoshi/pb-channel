@@ -259,8 +259,9 @@ export function RoomMappingModal({ propertyId, connection, isOpen, onClose, onSu
         <div className="pt-4 grid grid-cols-2 gap-3 border-t border-white/5 mt-4">
            <button
              onClick={handleActivateRooms}
-             disabled={isSubmitting}
-             className="py-2.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 rounded-xl font-bold border border-emerald-500/20 text-xs transition-all flex items-center justify-center gap-2"
+             disabled={isSubmitting || !existingMappings?.some((m: any) => m.ota_connection_id === connection?.id)}
+             title={!existingMappings?.some((m: any) => m.ota_connection_id === connection?.id) ? "You must Save & Update mappings first before activating." : "Force trigger structural activation"}
+             className="py-2.5 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-500 rounded-xl font-bold border border-emerald-500/20 text-xs transition-all flex items-center justify-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
            >
               <CheckCircle2 className="w-4 h-4" />
               Structural Activation

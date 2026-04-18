@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/utils/cn";
+
 import { api, handleApiError } from "@/lib/api";
 import { useProperties } from "@/hooks/useProperties";
 
@@ -62,12 +63,14 @@ export default function GuestReviewsPage() {
   const filteredReviews = reviews.filter(rev => {
     const searchMatch = 
       !searchTerm || 
-      rev.guestName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      rev.reservationId?.toString().includes(searchTerm) ||
-      (typeof rev.title === 'string' && rev.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (typeof rev.description === 'string' && rev.description.toLowerCase().includes(searchTerm.toLowerCase()));
+      (rev.reviewer?.name || rev.guestName || "").toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (rev.reservationId || "").toString().includes(searchTerm) ||
+      (rev.content?.headline || (typeof rev.title === 'string' ? rev.title : "")).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (rev.content?.positive || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (rev.content?.negative || "").toLowerCase().includes(searchTerm.toLowerCase());
     
-    const ratingMatch = (rev.score || 10) >= minRating;
+    const score = parseFloat(rev.scoring?.review_score || rev.score) || 10;
+    const ratingMatch = score >= minRating;
     
     return searchMatch && ratingMatch;
   });
@@ -185,9 +188,12 @@ export default function GuestReviewsPage() {
         </div>
       ) : filteredReviews.length > 0 ? (
         <div className="space-y-6">
-          {filteredReviews.map((rev, idx) => (
+          {filteredReviews.map((rev, idx) => {
+            const reviewKey = rev.reviewId || rev.id || `rev-${idx}`;
+            const score = parseFloat(rev.scoring?.review_score || rev.score) || 10;
+            return (
             <motion.div 
-               key={rev.id || idx}
+               key={reviewKey}
                initial={{ opacity: 0, y: 15 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ delay: idx * 0.05 }}
@@ -201,7 +207,7 @@ export default function GuestReviewsPage() {
                            <User className="w-6 h-6" />
                         </div>
                         <div>
-                           <h3 className="font-bold text-lg">{rev.guestName || "Anonymous Guest"}</h3>
+                           <h3 className="font-bold text-lg">{rev.reviewer?.name || rev.guestName || "Anonymous Guest"}</h3>
                            <p className="text-xs text-muted-foreground font-mono">Res: #{rev.reservationId || rev.id}</p>
                         </div>
                      </div>
@@ -211,7 +217,7 @@ export default function GuestReviewsPage() {
                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Overall Score</p>
                            <div className="flex items-center gap-2">
                               <span className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 tracking-tighter">
-                                 {rev.score ? rev.score : "10"}
+                                 {score}
                               </span>
                               <span className="text-muted-foreground/60 font-bold">/ 10</span>
                            </div>
@@ -221,7 +227,7 @@ export default function GuestReviewsPage() {
                            {[1, 2, 3, 4, 5].map((star) => (
                               <Star 
                                  key={star} 
-                                 className={cn("w-4 h-4", star <= ((rev.score || 10)/2) ? "fill-blue-500 text-blue-500" : "fill-muted text-muted")} 
+                                 className={cn("w-4 h-4", star <= (score/2) ? "fill-blue-500 text-blue-500" : "fill-muted text-muted")} 
                               />
                            ))}
                         </div>
@@ -241,13 +247,12 @@ export default function GuestReviewsPage() {
                   <div className="flex-1 flex flex-col">
                      <div className="flex-1">
                         <h4 className="text-xl font-bold mb-3">
-                           {typeof rev.title === 'string' ? rev.title : (rev.title?.message || rev.title?.text || "Wonderful stay, highly recommended")}
+                           {rev.content?.headline || (typeof rev.title === 'string' ? rev.title : (rev.title?.message || rev.title?.text || "Wonderful stay, highly recommended"))}
                         </h4>
                         <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
-                           {typeof rev.description === 'string' 
-                               ? rev.description 
-                               : rev.description?.text || rev.description?.message || "The customer did not leave a written description, only a scoring matrix was relayed from the OTA algorithm."
-                           }
+                           {rev.content?.positive ? `Positive: ${rev.content.positive}\n` : ""}
+                           {rev.content?.negative ? `Negative: ${rev.content.negative}` : ""}
+                           {!rev.content?.positive && !rev.content?.negative ? (typeof rev.description === 'string' ? rev.description : rev.description?.text || rev.description?.message || "The customer did not leave a written description, only a scoring matrix was relayed from the OTA algorithm.") : ""}
                         </p>
                      </div>
 
@@ -259,17 +264,17 @@ export default function GuestReviewsPage() {
                         </h5>
                         <div className="relative">
                            <textarea
-                              value={replyText[rev.id] || ""}
-                              onChange={(e) => setReplyText({ ...replyText, [rev.id]: e.target.value })}
+                              value={replyText[reviewKey] || ""}
+                              onChange={(e) => setReplyText({ ...replyText, [reviewKey]: e.target.value })}
                               placeholder="Type a thoughtful reply to display publicly on the OTA under this review..."
                               className="w-full min-h-[100px] bg-muted/30 border border-border rounded-2xl py-4 px-5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all resize-y placeholder:text-muted-foreground/40 shadow-sm"
                            />
                            <button 
-                              onClick={() => handleReply(rev.id, rev.channelId)}
-                              disabled={isReplying[rev.id] || !replyText[rev.id]?.trim()}
+                              onClick={() => handleReply(reviewKey, rev.channelId)}
+                              disabled={isReplying[reviewKey] || !replyText[reviewKey]?.trim()}
                               className="absolute bottom-4 right-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2 active:scale-95"
                            >
-                              {isReplying[rev.id] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                              {isReplying[reviewKey] ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                               Publish Reply
                            </button>
                         </div>
@@ -278,7 +283,7 @@ export default function GuestReviewsPage() {
                   </div>
                </div>
             </motion.div>
-          ))}
+          )})}
         </div>
       ) : searchTerm || minRating > 0 ? (
         <div className="bg-card border border-dashed border-border p-16 rounded-3xl text-center text-muted-foreground flex flex-col items-center shadow-sm">

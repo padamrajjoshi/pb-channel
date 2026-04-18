@@ -138,7 +138,7 @@ export function AnalyticsDashboard({ propertyId }: { propertyId: number }) {
                 </div>
               );
             }) : (
-              <div className="text-center text-muted-foregroundtext-sm">No channel data available</div>
+              <div className="text-center text-muted-foreground text-sm">No active channel bookings</div>
             )}
           </div>
         </div>

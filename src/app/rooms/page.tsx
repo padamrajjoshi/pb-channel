@@ -11,6 +11,7 @@ import { api, handleApiError } from "@/lib/api";
 import { motion } from "framer-motion";
 import { AddRatePlanModal } from "@/components/dashboard/AddRatePlanModal";
 import { useToast } from "@/hooks/useToast";
+import { cn } from "@/utils/cn";
 
 export default function RoomsAndSettingsPage() {
    const { properties, isLoading: propsLoading } = useProperties();
@@ -33,18 +34,18 @@ export default function RoomsAndSettingsPage() {
    const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
    const handleManualSync = async () => {
-     if (!selectedPropertyId) return;
-     setIsSyncing(true);
-     setSyncMessage(null);
-     try {
-       await api.post(`/hotels/${selectedPropertyId}/sync`);
-       setSyncMessage("Sync triggered successfully!");
-       setTimeout(() => setSyncMessage(null), 3000);
-     } catch (err: any) {
-       setSyncMessage(handleApiError(err));
-     } finally {
-       setIsSyncing(false);
-     }
+      if (!selectedPropertyId) return;
+      setIsSyncing(true);
+      setSyncMessage(null);
+      try {
+         await api.post(`/hotels/${selectedPropertyId}/sync`);
+         setSyncMessage("Sync triggered successfully!");
+         setTimeout(() => setSyncMessage(null), 3000);
+      } catch (err: any) {
+         setSyncMessage(handleApiError(err));
+      } finally {
+         setIsSyncing(false);
+      }
    };
 
    return (
@@ -53,53 +54,71 @@ export default function RoomsAndSettingsPage() {
          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
             <div>
                <div className="flex items-center gap-3 mb-2">
-                 <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-md text-[10px] font-bold border border-indigo-500/20 uppercase tracking-widest flex items-center gap-1.5">
-                   <Settings2 className="w-3 h-3" />
-                   Configuration Matrix
-                 </span>
+                  <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-400 rounded-md text-[10px] font-bold border border-indigo-500/20 uppercase tracking-widest flex items-center gap-1.5">
+                     <Settings2 className="w-3 h-3" />
+                     Configuration Matrix
+                  </span>
                </div>
                <h1 className="text-4xl font-bold tracking-tight">Rooms & Settings</h1>
                <p className="text-muted-foreground mt-2 font-medium">Manage base configurations, room structures, and property policies globally.</p>
             </div>
 
-             <div className="flex flex-wrap items-center gap-3">
-                {syncMessage && (
-                  <motion.span
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="text-xs font-bold text-blue-400 bg-blue-500/5 px-3 py-1.5 rounded-lg border border-blue-500/10 italic"
-                  >
-                    {syncMessage}
-                  </motion.span>
-                )}
-                {selectedPropertyId && (
-                  <button
-                    onClick={handleManualSync}
-                    disabled={isSyncing}
-                    className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-5 py-2 rounded-xl text-sm font-semibold border border-blue-500/20 transition-all disabled:opacity-50"
-                  >
-                    {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Sync Now
-                  </button>
-                )}
-                <div className="bg-card border border-border rounded-2xl p-1.5 flex transition-all shadow-sm">
-                   {propsLoading ? (
-                      <div className="w-48 h-10 bg-muted animate-pulse rounded-xl" />
-                   ) : (
-                      <select
-                         onChange={(e) => setSelectedPropertyId(e.target.value)}
-                         className="bg-transparent text-foreground px-4 py-2 text-sm font-bold focus:outline-none min-w-[200px]"
-                         value={selectedPropertyId || ""}
-                      >
-                         <option value="" className="bg-card">Select Property...</option>
-                         {properties?.map((p: any) => (
-                            <option key={p.id} value={p.id} className="bg-card">{p.name}</option>
-                         ))}
-                      </select>
-                   )}
-                </div>
-             </div>
-          </div>
+            <div className="flex flex-col items-end gap-4">
+               {/* Property Selector - Top Line */}
+               <div className="bg-card border border-border rounded-2xl p-1.5 flex transition-all shadow-sm">
+                  {propsLoading ? (
+                     <div className="w-48 h-10 bg-muted animate-pulse rounded-xl" />
+                  ) : (
+                     <select
+                        onChange={(e) => setSelectedPropertyId(e.target.value)}
+                        className="bg-transparent text-foreground px-4 py-2 text-sm font-bold focus:outline-none min-w-[200px]"
+                        value={selectedPropertyId || ""}
+                     >
+                        <option value="" className="bg-card">Select Property...</option>
+                        {properties?.map((p: any) => (
+                           <option key={p.id} value={p.id} className="bg-card">{p.name}</option>
+                        ))}
+                     </select>
+                  )}
+               </div>
+
+               {/* Action Buttons - Bottom Line */}
+               <div className="flex items-center gap-3">
+                  {syncMessage && (
+                     <motion.span
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-xs font-bold text-blue-400 bg-blue-500/5 px-3 py-1.5 rounded-lg border border-blue-500/10 italic"
+                     >
+                        {syncMessage}
+                     </motion.span>
+                  )}
+
+                  {selectedPropertyId && (
+                     <>
+                        <button
+                           onClick={handleManualSync}
+                           disabled={isSyncing}
+                           className="flex items-center gap-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 px-5 py-2.5 rounded-xl text-sm font-bold border border-blue-500/20 transition-all disabled:opacity-50 shadow-sm"
+                           title="Force Sync Engine"
+                        >
+                           <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+                           <span className="hidden sm:inline">Sync Now</span>
+                        </button>
+
+                        <button
+                           onClick={() => setIsAddRoomModalOpen(true)}
+                           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
+                        >
+                           <Plus className="w-4 h-4" />
+                           <span className="hidden sm:inline">Add Room Type</span>
+                           <span className="sm:hidden text-lg">+</span>
+                        </button>
+                     </>
+                  )}
+               </div>
+            </div>
+         </div>
 
          {!selectedPropertyId ? (
             <div className="py-32 bg-card border border-border rounded-3xl text-center text-muted-foreground flex flex-col items-center gap-4 shadow-sm">
@@ -112,13 +131,6 @@ export default function RoomsAndSettingsPage() {
                <div className="space-y-6">
                   <div className="flex items-center justify-between">
                      <h3 className="text-xl font-bold">Configured Room Types</h3>
-                     <button
-                        onClick={() => setIsAddRoomModalOpen(true)}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-500/20"
-                     >
-                        <Plus className="w-4 h-4" />
-                        Add Room Type
-                     </button>
                   </div>
 
                   {roomsLoading ? (
@@ -152,14 +164,14 @@ export default function RoomsAndSettingsPage() {
                               </div>
 
                               <div className="flex gap-3">
-                                 <button 
+                                 <button
                                     onClick={() => setSelectedYieldRoom(room)}
                                     className="px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-xl transition-all border border-purple-500/20 flex items-center gap-1.5"
                                  >
                                     <Percent className="w-3 h-3" />
                                     Yield Rules
                                  </button>
-                                 <button 
+                                 <button
                                     onClick={() => setSelectedMediaRoom({ id: room.id, name: room.name })}
                                     className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-xl transition-all border border-emerald-500/20 flex items-center gap-1.5"
                                  >
@@ -188,16 +200,16 @@ export default function RoomsAndSettingsPage() {
 
                {/* Sync Engine Info Card */}
                <div className="bg-blue-500/5 dark:bg-blue-900/10 border border-blue-500/10 p-6 rounded-2xl flex items-start gap-4 shadow-sm mt-6">
-                 <div className="p-2 bg-blue-500/10 rounded-lg text-blue-600 dark:text-blue-400">
-                   <Info className="w-5 h-5" />
-                 </div>
-                 <div>
-                   <h5 className="text-blue-600 dark:text-blue-200 font-bold mb-1 uppercase tracking-wider text-xs">Sync Engine Note</h5>
-                   <p className="text-blue-600/70 dark:text-blue-200/60 text-sm leading-relaxed">
-                     Price and inventory synchronization happens automatically every 15 minutes.
-                     Manual pushes can be triggered via the "Sync Now" button above or monitored from the Sync Engine tab.
-                   </p>
-                 </div>
+                  <div className="p-2 bg-blue-500/10 rounded-lg text-blue-600 dark:text-blue-400">
+                     <Info className="w-5 h-5" />
+                  </div>
+                  <div>
+                     <h5 className="text-blue-600 dark:text-blue-200 font-bold mb-1 uppercase tracking-wider text-xs">Sync Engine Note</h5>
+                     <p className="text-blue-600/70 dark:text-blue-200/60 text-sm leading-relaxed">
+                        Price and inventory synchronization happens automatically every 15 minutes.
+                        Manual pushes can be triggered via the "Sync Now" button above or monitored from the Sync Engine tab.
+                     </p>
+                  </div>
                </div>
 
                {/* Modals placed safely at the end */}

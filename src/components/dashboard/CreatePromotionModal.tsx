@@ -10,20 +10,41 @@ interface CreatePromotionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialData?: any;
 }
 
-export function CreatePromotionModal({ propertyId, isOpen, onClose, onSuccess }: CreatePromotionModalProps) {
-  const [name, setName] = useState("");
-  const [discount, setDiscount] = useState<number | "">(10);
-  const [targetChannel, setTargetChannel] = useState("Booking.com");
+export function CreatePromotionModal({ propertyId, isOpen, onClose, onSuccess, initialData }: CreatePromotionModalProps) {
+  const [name, setName] = React.useState("");
+  const [discount, setDiscount] = React.useState<number | "">(10);
+  const [targetChannel, setTargetChannel] = React.useState("Booking.com");
   
-  const [bookStart, setBookStart] = useState("");
-  const [bookEnd, setBookEnd] = useState("");
-  const [stayStart, setStayStart] = useState("");
-  const [stayEnd, setStayEnd] = useState("");
+  const [bookStart, setBookStart] = React.useState("");
+  const [bookEnd, setBookEnd] = React.useState("");
+  const [stayStart, setStayStart] = React.useState("");
+  const [stayEnd, setStayEnd] = React.useState("");
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (initialData && isOpen) {
+      setName(initialData.name || "");
+      setDiscount(initialData.discount || 10);
+      setTargetChannel(initialData.target_ota || "Booking.com");
+      setBookStart(initialData.bookDate?.start || "");
+      setBookEnd(initialData.bookDate?.end || "");
+      setStayStart(initialData.stayDate?.start || "");
+      setStayEnd(initialData.stayDate?.end || "");
+    } else if (!initialData && isOpen) {
+      // Clear for new
+      setName("");
+      setDiscount(10);
+      setBookStart("");
+      setBookEnd("");
+      setStayStart("");
+      setStayEnd("");
+    }
+  }, [initialData, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,24 +57,21 @@ export function CreatePromotionModal({ propertyId, isOpen, onClose, onSuccess }:
       channelId: targetChannel === "Booking.com" ? 1 : 2, 
       propertyId: propertyId.toString(),
       name,
-      type: "Basic",
-      target_ota: targetChannel, // Backend expects target_ota
+      type: "basic",
+      target_ota: targetChannel,
       bookDate: { start: bookStart, end: bookEnd },
       stayDate: { start: stayStart, end: stayEnd, activeWeekdays: [], excludedDates: [] },
       discount: discount.toString()
     };
 
     try {
-      await api.post(`/hotels/${propertyId}/promotions`, payload);
+      if (initialData?.id) {
+        await api.put(`/hotels/${propertyId}/promotions/${initialData.id}`, payload);
+      } else {
+        await api.post(`/hotels/${propertyId}/promotions`, payload);
+      }
       onSuccess();
       onClose();
-      // Reset
-      setName("");
-      setDiscount(10);
-      setBookStart("");
-      setBookEnd("");
-      setStayStart("");
-      setStayEnd("");
     } catch (err: any) {
       setError(handleApiError(err));
     } finally {
@@ -62,7 +80,7 @@ export function CreatePromotionModal({ propertyId, isOpen, onClose, onSuccess }:
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Construct OTA Promotion">
+    <Modal isOpen={isOpen} onClose={onClose} title={initialData ? "Refine Yield Strategy" : "Construct OTA Promotion"}>
       <form onSubmit={handleSubmit} className="space-y-6">
         
         {/* Name & Channel Block */}

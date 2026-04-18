@@ -4,7 +4,10 @@ import React, { useEffect, useState } from "react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { useProfile } from "@/hooks/useHotel";
+import { useNotifications } from "@/hooks/useNotifications";
+import { Bell } from "lucide-react";
 
 export function DashboardWrapper({
   children,
@@ -22,6 +25,35 @@ export function DashboardWrapper({
 
   // Load User Profile from Auth Token - Only on protected routes
   const { profile, isLoading: isProfileLoading, isError } = useProfile(isPublicRoute);
+  
+  // Load notifications
+  const { notifications, unreadCount } = useNotifications();
+  const [prevUnread, setPrevUnread] = useState(0);
+
+  useEffect(() => {
+    // Request permission for browser notifications on mount
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    // Trigger a browser notification if unreadCount goes up
+    if (unreadCount > prevUnread && typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "granted") {
+        const latestNotif = notifications.find((n: any) => !n.is_read);
+        if (latestNotif) {
+          new Notification(latestNotif.title, {
+            body: latestNotif.message,
+            icon: "/favicon.ico" // Change as needed
+          });
+        }
+      }
+    }
+    setPrevUnread(unreadCount);
+  }, [unreadCount, notifications, prevUnread]);
 
   useEffect(() => {
     if (isProfileLoading) return;
@@ -124,6 +156,16 @@ export function DashboardWrapper({
           </div>
 
           <div className="flex items-center gap-4">
+            
+            <Link href="/notifications" className="relative p-2 text-muted-foreground hover:text-foreground transition-colors">
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white shadow-sm ring-2 ring-background">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Link>
+
             <div className="bg-card border border-border rounded-xl px-4 py-2 flex items-center gap-3 shadow-sm">
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center text-xs font-bold text-white">
                 {userInitials}

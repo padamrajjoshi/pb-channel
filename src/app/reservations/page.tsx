@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import { Inbox, Hotel, Download, Clock, Search, Filter, CalendarDays, User, ExternalLink, RefreshCw, Loader2 } from "lucide-react";
 import { useProperties } from "@/hooks/useProperties";
 import { useReservations } from "@/hooks/useHotel";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/utils/cn";
 
 export default function ReservationsPage() {
    const { properties, isLoading: propsLoading } = useProperties();
@@ -70,6 +71,33 @@ export default function ReservationsPage() {
       return String(res.guest || "Unknown Guest");
    };
 
+   const handleExportCSV = () => {
+      if (!reservations || reservations.length === 0) return;
+      const headers = ["Guest", "Reservation ID", "Check In", "Check Out", "Source", "Revenue", "Status"];
+      const rows = reservations.map((res: any) => [
+         getGuestName(res),
+         res.remote_reservation_id || res.id,
+         res.check_in || res.arrival_date || "N/A",
+         res.check_out || res.departure_date || "N/A",
+         res.channel || res._source_ota || "N/A",
+         res.total_price || res.price || "0",
+         typeof res.status === 'string' ? res.status : (res.status?.name || res.status?.status || "Active")
+      ]);
+      const csvContent = [
+         headers.join(","),
+         ...rows.map((row: any) => row.map((str: any) => `"${String(str).replace(/"/g, '""')}"`).join(","))
+      ].join("\n");
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `reservations_${selectedPropertyId || 'all'}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+   };
+
    return (
       <div className="space-y-8 pb-12 max-w-7xl mx-auto">
          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -104,7 +132,10 @@ export default function ReservationsPage() {
                   )}
                </div>
 
-               <button className="h-10 px-4 bg-muted border border-border text-foreground hover:bg-muted/80 transition-colors text-xs font-bold rounded-2xl flex items-center gap-2 shadow-sm">
+               <button 
+                  onClick={handleExportCSV}
+                  className="h-10 px-4 bg-muted border border-border text-foreground hover:bg-muted/80 transition-colors text-xs font-bold rounded-2xl flex items-center gap-2 shadow-sm"
+               >
                   <Download className="w-4 h-4" />
                   Export CSV
                </button>
@@ -142,7 +173,7 @@ export default function ReservationsPage() {
                   disabled={!selectedPropertyId || resLoading}
                   className="p-2.5 hover:bg-indigo-500/10 hover:text-indigo-600 hover:border-indigo-500/30 border bg-background rounded-xl text-muted-foreground transition-all flex items-center justify-center disabled:opacity-50"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className={cn("w-4 h-4", resLoading && "animate-spin")} />
                 </button>
               </div>
             </div>
@@ -175,8 +206,16 @@ export default function ReservationsPage() {
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-border">
+                     <AnimatePresence>
                      {filteredReservations.map((res: any, idx: number) => (
-                       <tr key={res.id || idx} className="hover:bg-muted/30 transition-colors group">
+                       <motion.tr 
+                         key={res.id || idx} 
+                         initial={{ opacity: 0, y: 10 }}
+                         animate={{ opacity: 1, y: 0 }}
+                         exit={{ opacity: 0, scale: 0.95 }}
+                         transition={{ delay: idx * 0.03 }}
+                         className="hover:bg-muted/30 transition-colors group"
+                       >
                          <td className="p-4">
                            <div className="flex items-center gap-3">
                              <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-600">
@@ -218,8 +257,9 @@ export default function ReservationsPage() {
                              <ExternalLink className="w-4 h-4" />
                            </button>
                          </td>
-                       </tr>
+                       </motion.tr>
                      ))}
+                     </AnimatePresence>
                    </tbody>
                  </table>
                </div>
