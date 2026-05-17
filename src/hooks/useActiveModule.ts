@@ -10,7 +10,7 @@ interface ActiveModuleState {
 export const useActiveModule = create<ActiveModuleState>()(
   persist(
     (set) => ({
-      activeModule: "pms",
+      activeModule: "PMS",
       setActiveModule: (module) => set({ activeModule: module }),
     }),
     {
