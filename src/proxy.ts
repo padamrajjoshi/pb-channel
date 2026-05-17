@@ -6,10 +6,10 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get('access_token')?.value;
 
   // 1. Define Route Types
-  const isAuthPage = pathname.startsWith('/login') || 
-                     pathname.startsWith('/otp') || 
-                     pathname.startsWith('/forgot-password') || 
-                     pathname.startsWith('/reset-password');
+  const isAuthPage = pathname.startsWith('/login') ||
+    pathname.startsWith('/otp') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password');
   const isPublicAsset = pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon.ico') ||
     pathname.includes('/api/');
