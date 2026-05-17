@@ -29,13 +29,7 @@ api.interceptors.response.use(
     const originalRequest = error.config as typeof error.config & { _retry?: boolean };
     const status = error.response?.status;
     const url = originalRequest?.url ?? '';
-
-    const isAuthEndpoint =
-      url.includes('/auth/refresh-token') ||
-      url.includes('/auth/logout') ||
-      url.includes('/auth/otp-login') ||
-      url.includes('/auth/verify-otp') ||
-      url.includes('/auth/login');
+    const isAuthEndpoint = url.includes('/auth/');
 
     if (status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       if (isRefreshing) {
