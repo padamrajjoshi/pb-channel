@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, AlertTriangle, AlertCircle, Info } from "lucide-react";
+import { X, AlertTriangle, AlertCircle, Info, Loader2 } from "lucide-react";
 import { cn } from "@/utils/cn";
 
 interface ConfirmDialogProps {
@@ -31,54 +31,55 @@ export function ConfirmDialog({
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <div className="fixed inset-0 z-[1000] overflow-y-auto">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onCancel}
-            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[99998]"
+            className="fixed inset-0 bg-background/60 backdrop-blur-xl z-0"
           />
 
-          {/* Dialog */}
-          <div className="fixed inset-0 flex items-center justify-center z-[99999] p-4 pointer-events-none">
+          {/* Dialog Container */}
+          <div className="flex min-h-full items-center justify-center p-4 text-center z-10 relative">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 10 }}
-              className="bg-card border border-border rounded-3xl overflow-hidden shadow-2xl w-full max-w-md pointer-events-auto"
+              initial={{ opacity: 0, scale: 0.9, y: 20, rotateX: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0, rotateX: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20, rotateX: 15 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-md transform overflow-hidden rounded-[2.5rem] bg-card border border-border/60 p-8 text-left align-middle shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] transition-all"
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className={cn(
-                    "w-12 h-12 rounded-2xl flex items-center justify-center",
-                    type === "danger" && "bg-rose-500/10 text-rose-500",
-                    type === "warning" && "bg-amber-500/10 text-amber-500",
-                    type === "info" && "bg-blue-500/10 text-blue-500"
-                  )}>
-                    {type === "danger" && <AlertCircle className="w-6 h-6" />}
-                    {type === "warning" && <AlertTriangle className="w-6 h-6" />}
-                    {type === "info" && <Info className="w-6 h-6" />}
-                  </div>
-                  <button 
-                    onClick={onCancel}
-                    className="p-2 hover:bg-muted rounded-xl text-muted-foreground transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              <div className="flex items-center justify-between mb-8">
+                <div className={cn(
+                  "w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner transition-transform hover:scale-110",
+                  type === "danger" && "bg-rose-500/10 text-rose-500",
+                  type === "warning" && "bg-amber-500/10 text-amber-500",
+                  type === "info" && "bg-primary/10 text-primary"
+                )}>
+                  {type === "danger" && <AlertCircle className="w-8 h-8" />}
+                  {type === "warning" && <AlertTriangle className="w-8 h-8" />}
+                  {type === "info" && <Info className="w-8 h-8" />}
                 </div>
+                <button 
+                  onClick={onCancel}
+                  className="p-3 hover:bg-muted rounded-2xl text-muted-foreground transition-all active:scale-90"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
 
-                <h3 className="text-xl font-bold mb-2">{title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+              <div className="space-y-3">
+                <h3 className="text-2xl font-black tracking-tight text-foreground">{title}</h3>
+                <p className="text-muted-foreground text-sm font-medium leading-relaxed">
                   {message}
                 </p>
               </div>
 
-              <div className="p-6 bg-muted/30 border-t border-border flex gap-3">
+              <div className="mt-10 flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={onCancel}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-card font-bold text-sm hover:bg-muted transition-all active:scale-95"
+                  className="flex-1 px-6 py-3.5 rounded-2xl border border-border bg-card font-black text-sm hover:bg-muted transition-all active:scale-[0.98] shadow-sm"
                 >
                   {cancelLabel}
                 </button>
@@ -86,18 +87,19 @@ export function ConfirmDialog({
                   onClick={onConfirm}
                   disabled={isLoading}
                   className={cn(
-                    "flex-1 px-4 py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 text-white shadow-lg",
-                    type === "danger" && "bg-rose-600 hover:bg-rose-500 shadow-rose-500/20",
-                    type === "warning" && "bg-amber-600 hover:bg-amber-500 shadow-amber-500/20",
-                    type === "info" && "bg-blue-600 hover:bg-blue-500 shadow-blue-500/20"
+                    "flex-1 px-6 py-3.5 rounded-2xl font-black text-sm transition-all active:scale-[0.98] text-white shadow-2xl flex items-center justify-center gap-2",
+                    type === "danger" && "bg-rose-600 hover:bg-rose-500 shadow-rose-600/30",
+                    type === "warning" && "bg-amber-600 hover:bg-amber-500 shadow-amber-600/30",
+                    type === "info" && "bg-primary hover:bg-primary/90 shadow-primary/30"
                   )}
                 >
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                   {isLoading ? "Processing..." : confirmLabel}
                 </button>
               </div>
             </motion.div>
           </div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );

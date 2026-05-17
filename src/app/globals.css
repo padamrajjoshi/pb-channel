@@ -119,6 +119,24 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-background/40 backdrop-blur-xl border border-border/40;
+  }
+  
+  .glass-card {
+    @apply bg-card/40 backdrop-blur-xl border border-border/40 shadow-2xl;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/60;
+  }
 }
 
 .icon-mask {

@@ -4,8 +4,11 @@ import React, { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { api, handleApiError } from "@/lib/api";
 import { useHotelRoomTypes } from "@/hooks/useHotel";
-import { Loader2, CalendarRange, AlertCircle, Save } from "lucide-react";
+import { Loader2, CalendarRange, AlertCircle, Save, TrendingUp, Zap, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/useToast";
+import { Dropdown } from "@/components/ui/Dropdown";
+import { Input } from "@/components/ui/Input";
+import { cn } from "@/utils/cn";
 
 interface BulkUpdateModalProps {
   propertyId: number;
@@ -20,7 +23,7 @@ export function BulkUpdateModal({ propertyId, isOpen, onClose, onSuccess }: Bulk
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedRoom, setSelectedRoom] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [inventory, setInventory] = useState("");
   const [price, setPrice] = useState("");
 
@@ -67,7 +70,7 @@ export function BulkUpdateModal({ propertyId, isOpen, onClose, onSuccess }: Bulk
       setEndDate("");
       setInventory("");
       setPrice("");
-      setSelectedRoom("");
+      setSelectedRoom(null);
       
       onSuccess();
       onClose();
@@ -79,121 +82,101 @@ export function BulkUpdateModal({ propertyId, isOpen, onClose, onSuccess }: Bulk
     }
   };
 
+  const roomOptions = roomTypes?.map((room: any) => ({
+    value: room.id.toString(),
+    label: room.name
+  })) || [];
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Bulk Grid Update">
-      <form onSubmit={handleSubmit} className="space-y-6 pt-2">
-        <div className="bg-blue-500/5 border border-blue-500/10 p-4 rounded-xl flex items-start gap-4">
-          <CalendarRange className="w-5 h-5 text-blue-400 mt-0.5 shrink-0" />
-          <p className="text-xs text-blue-200/70 leading-relaxed">
-            Apply mass inventory or pricing overrides across a large date range. 
-            Updates will be instantly pushed to all mapped OTA platforms.
-          </p>
+    <Modal isOpen={isOpen} onClose={onClose} title="Bulk Matrix Sync">
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="bg-primary/5 border border-primary/10 p-6 rounded-[1.5rem] flex items-start gap-4 shadow-inner relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Sparkles className="w-16 h-16" />
+          </div>
+          <CalendarRange className="w-6 h-6 text-primary mt-1 shrink-0" />
+          <div className="space-y-1">
+            <p className="text-sm font-black text-foreground">Sync Engine v2.0 Active</p>
+            <p className="text-xs text-muted-foreground font-medium leading-relaxed">
+              Applying overrides across a large range will trigger high-priority distribution 
+              tasks for all mapped OTAs. Please verify dates before submitting.
+            </p>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-              Select Room Type
-            </label>
-            <select
-              value={selectedRoom}
-              onChange={(e) => setSelectedRoom(e.target.value)}
-              disabled={roomsLoading}
-              className="w-full bg-slate-900 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all cursor-pointer"
-            >
-              <option value="">{roomsLoading ? "Loading rooms..." : "Choose a room..."}</option>
-              {roomTypes?.map((room: any) => (
-                <option key={room.id} value={room.id}>
-                  {room.name}
-                </option>
-              ))}
-            </select>
+        <div className="space-y-6">
+          <Dropdown
+            label="Select Room Type"
+            options={roomOptions}
+            value={selectedRoom}
+            onChange={setSelectedRoom}
+            placeholder={roomsLoading ? "Loading rooms..." : "Choose room type..."}
+          />
+
+          <div className="grid grid-cols-2 gap-6">
+            <Input
+              label="Start Date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              icon={<CalendarRange className="w-4 h-4" />}
+            />
+            <Input
+              label="End Date"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate}
+              icon={<CalendarRange className="w-4 h-4" />}
+            />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full bg-slate-900 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all custom-calendar-icon"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                min={startDate}
-                className="w-full bg-slate-900 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all custom-calendar-icon"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Units Available
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="e.g. 5"
-                value={inventory}
-                onChange={(e) => setInventory(e.target.value)}
-                className="w-full bg-slate-900 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
-              />
-              <p className="text-[10px] text-slate-500 mt-1">Leave blank to skip.</p>
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Price (INR)
-              </label>
-              <input
-                type="number"
-                min="0"
-                placeholder="e.g. 2500"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="w-full bg-slate-900 border border-white/10 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all"
-              />
-              <p className="text-[10px] text-slate-500 mt-1">Leave blank to skip.</p>
-            </div>
+          <div className="grid grid-cols-2 gap-6">
+            <Input
+              label="Inventory Units"
+              type="number"
+              placeholder="e.g. 10"
+              value={inventory}
+              onChange={(e) => setInventory(e.target.value)}
+              icon={<Zap className="w-4 h-4" />}
+            />
+            <Input
+              label="Price (INR)"
+              type="number"
+              placeholder="e.g. 4500"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              icon={<TrendingUp className="w-4 h-4" />}
+            />
           </div>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
+          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-500 text-xs font-black flex items-center gap-3 animate-pulse">
+            <AlertCircle className="w-5 h-5 shrink-0" />
             {error}
           </div>
         )}
 
-        <div className="pt-6 flex gap-3 border-t border-white/5 mt-4">
+        <div className="pt-4 flex flex-col sm:flex-row gap-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-[1] bg-white/5 hover:bg-white/10 text-white py-3.5 rounded-2xl font-bold transition-all border border-white/5 text-sm"
+            className="flex-1 h-14 bg-muted text-foreground px-6 rounded-2xl font-black text-sm transition-all hover:bg-muted/80 active:scale-[0.98]"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex-[2] bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 text-sm"
+            className="flex-[2] h-14 bg-primary text-white px-8 rounded-2xl font-black text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xl shadow-primary/30 flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {isSubmitting ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-6 h-6 animate-spin" />
             ) : (
               <>
-                <Save className="w-4 h-4" />
-                Apply Bulk Update
+                <Save className="w-5 h-5" />
+                Push Bulk Overrides
               </>
             )}
           </button>

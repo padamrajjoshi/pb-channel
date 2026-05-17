@@ -4,21 +4,12 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Hotel,
-  Calendar,
-  Settings,
   ChevronRight,
   LogOut,
-  LayoutDashboard,
-  User,
-  Inbox,
-  MessageSquareText,
-  Tag,
-  Bed,
-  Activity,
   Table2,
   BarChart2,
   Globe2,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { motion, AnimatePresence } from "framer-motion";
@@ -26,22 +17,38 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/common/logo";
 import { api } from "@/lib/api";
 
-const navItems: { name: string; href: string; icon: React.ElementType; exact?: boolean }[] = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard, exact: true },
-  { name: "Reservations", href: "/reservations", icon: Inbox },
-  { name: "Guest Reviews", href: "/reviews", icon: MessageSquareText },
-  { name: "Promotions", href: "/promotions", icon: Tag },
-  { name: "Properties", href: "/properties", icon: Hotel },
-  { name: "Rooms & Setup", href: "/rooms", icon: Bed },
-  { name: "Calendar", href: "/calendar", icon: Calendar },
-  { name: "Analytics & Sync", href: "/analytics", icon: Activity },
-  { name: "Users & Staff", href: "/users", icon: User },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+import { useProfile } from "@/hooks/useHotel";
+import { useActiveModule } from "@/hooks/useActiveModule";
+import { MODULES, ModuleConfig, NavItem } from "@/config/modules";
+import { ModuleSwitcher } from "./ModuleSwitcher";
+
+// Shared Tooltip State
+const Tooltip = ({ text, pos }: { text: string; pos: { x: number; y: number } | null }) => {
+  if (!pos) return null;
+  return (
+    <div 
+      className="fixed z-[100] px-3 py-1.5 bg-card/90 backdrop-blur-md text-foreground border border-border shadow-xl rounded-xl text-xs font-bold pointer-events-none transition-opacity duration-200 whitespace-nowrap"
+      style={{ left: pos.x, top: pos.y, transform: 'translateY(-50%)' }}
+    >
+      {text}
+    </div>
+  );
+};
+
+import { useUIStore } from "@/hooks/useUIStore";
+import { useRole } from "@/hooks/useRole";
+import { 
+  Menu, 
+  ChevronLeft as ChevronLeftIcon,
+  Bell,
+  User,
+  Settings,
+  HelpCircle
+} from "lucide-react";
 
 /** Extract propertyId + connId from /properties/[id]/connections/[connId]/... */
 function parseConnectionContext(pathname: string): { propertyId: string; connId: string } | null {
-  const match = pathname.match(/^\/properties\/(\d+)\/connections\/(\d+)/);
+  const match = pathname.match(/^\/pms\/properties\/(\d+)\/connections\/(\d+)/);
   if (!match) return null;
   return { propertyId: match[1], connId: match[2] };
 }
@@ -50,6 +57,20 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const connCtx = parseConnectionContext(pathname);
+  const { profile } = useProfile();
+  const { currentRole, enabledModules, hasPermission } = useRole();
+  const { isSidebarCollapsed, toggleSidebar } = useUIStore();
+  const [tooltipData, setTooltipData] = React.useState<{ text: string; pos: { x: number; y: number } } | null>(null);
+
+  const handleMouseEnter = (e: React.MouseEvent, text: string) => {
+    if (!isSidebarCollapsed) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltipData({ text, pos: { x: rect.right + 12, y: rect.top + rect.height / 2 } });
+  };
+
+  const handleMouseLeave = () => {
+    setTooltipData(null);
+  };
 
   const handleLogout = async () => {
     try { await api.post("/auth/logout", {}); } catch { /* best-effort */ }
@@ -57,97 +78,175 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-64 h-full bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border flex flex-col fixed left-0 top-0 z-50 transition-colors duration-300">
-      {/* Logo */}
-      <div className="p-6 flex items-center justify-center border-b border-sidebar-border bg-sidebar-accent/20">
-        <Logo className="w-auto h-12 py-1" />
+    <motion.div 
+      initial={false}
+      animate={{ width: isSidebarCollapsed ? 64 : 256 }}
+      transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+      className={cn(
+        "h-full bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border flex flex-col fixed left-0 top-0 z-50 transition-colors duration-300",
+      )}
+    >
+      <Tooltip text={tooltipData?.text || ""} pos={tooltipData?.pos || null} />
+      {/* Header with Logo & Toggle */}
+      <div className={cn(
+        "h-20 flex items-center border-b border-sidebar-border/50 overflow-hidden relative",
+        isSidebarCollapsed ? "justify-center" : "justify-between px-4"
+      )}>
+        <AnimatePresence mode="wait">
+          {!isSidebarCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="flex-1 overflow-hidden"
+            >
+              <Logo className="w-auto h-8 py-1 object-contain" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded-xl hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground transition-all active:scale-90 shadow-sm flex-shrink-0 z-10"
+        >
+          {isSidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeftIcon className="w-5 h-5" />}
+        </button>
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto no-scrollbar">
-        {/* Main nav */}
-        {navItems.map((item) => {
-          const isActive = item.exact
-            ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(item.href + "/");
+      <nav className="flex-1 px-3 pb-6 space-y-6 overflow-y-auto no-scrollbar pt-6">
+        {/* 🏠 GLOBAL OVERVIEW */}
+        <div className="space-y-1 px-1">
+          <Link
+            href="/"
+            onMouseEnter={(e) => handleMouseEnter(e, "Overview")}
+            onMouseLeave={handleMouseLeave}
+            className={cn(
+              "flex items-center gap-3 py-3 rounded-2xl transition-all duration-300 relative",
+              isSidebarCollapsed ? "justify-center px-0" : "px-4",
+              pathname === "/"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-xl shadow-sidebar-primary/30"
+                : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            )}
+          >
+            <LayoutDashboard className={cn("w-5 h-5 flex-shrink-0", isSidebarCollapsed && "mx-auto")} />
+            {!isSidebarCollapsed && <span className="font-bold text-sm">Overview</span>}
+            {isSidebarCollapsed && pathname === "/" && (
+              <motion.div layoutId="active-pill" className="absolute left-0 w-1 h-6 bg-white rounded-r-full" />
+            )}
+          </Link>
+        </div>
+
+        {/* 🏨 MODULE GROUPS */}
+        {MODULES.filter((m: ModuleConfig) => {
+          // 1. Legacy Role Filter
+          if (m.allowedRoles && currentRole && !m.allowedRoles.includes(currentRole)) return false;
+          // 1.5 Dynamic Permission Filter
+          if (m.requiredPermission && !hasPermission(m.requiredPermission)) return false;
+          
+          // 2. SaaS Module Filter (system modules pass through, otherwise check enabledModules)
+          if (!m.id.startsWith("SYSTEM_") && enabledModules && enabledModules.length > 0) {
+            if (!enabledModules.includes(m.id)) return false;
+          }
+          return true;
+        }).map((module: ModuleConfig) => {
+          const validNavItems = module.navItems.filter((item: NavItem) => {
+            if (item.allowedRoles && currentRole && !item.allowedRoles.includes(currentRole)) return false;
+            if (item.requiredPermission && !hasPermission(item.requiredPermission)) return false;
+            return true;
+          });
+          
+          if (validNavItems.length === 0) return null;
+
+          const isModuleActive = validNavItems.some(item =>
+            item.exact ? pathname === item.href : pathname.startsWith(item.href)
+          );
 
           return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 group",
-                isActive
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-sidebar-primary/20"
-                  : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+            <div key={module.id} className="space-y-3 px-1">
+              {!isSidebarCollapsed ? (
+                <p className={cn(
+                  "px-4 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-colors duration-300",
+                  isModuleActive ? "text-sidebar-primary" : "text-sidebar-foreground/30"
+                )}>
+                  {module.label}
+                </p>
+              ) : (
+                <p className={cn(
+                  "text-center text-[10px] font-black uppercase tracking-[0.1em] transition-colors duration-300",
+                  isModuleActive ? "text-sidebar-primary" : "text-sidebar-foreground/30"
+                )}>
+                  {module.label.split(' ')[0].substring(0, 3)}
+                </p>
               )}
-            >
-              <item.icon className={cn(
-                "w-5 h-5 transition-transform duration-300 group-hover:scale-110",
-                isActive
-                  ? "text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground/50 group-hover:text-sidebar-primary"
-              )} />
-              <span className="font-medium flex-1 text-sm">{item.name}</span>
-              {isActive && (
-                <motion.div
-                  layoutId="sidebar-indicator"
-                  className="w-1.5 h-1.5 rounded-full bg-sidebar-primary-foreground"
-                />
-              )}
-              {!isActive && (
-                <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 group-hover:translate-x-0" />
-              )}
-            </Link>
+              
+              <div className="space-y-1">
+                {validNavItems.map((item) => {
+                  const isActive = item.exact
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
+
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onMouseEnter={(e) => handleMouseEnter(e, item.name)}
+                      onMouseLeave={handleMouseLeave}
+                      className={cn(
+                        "flex items-center gap-3 py-3 rounded-2xl transition-all duration-300 relative",
+                        isSidebarCollapsed ? "justify-center px-0" : "px-4",
+                        isActive
+                          ? "bg-sidebar-primary/10 text-sidebar-primary font-bold shadow-sm"
+                          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                      )}
+                    >
+                      <item.icon className={cn(
+                        "w-5 h-5 flex-shrink-0 transition-transform duration-300 group-hover:scale-110",
+                        isActive ? "text-sidebar-primary" : "text-sidebar-foreground/40",
+                        isSidebarCollapsed && "mx-auto"
+                      )} />
+                      {!isSidebarCollapsed && <span className="text-sm">{item.name}</span>}
+                      {isSidebarCollapsed && isActive && (
+                        <motion.div layoutId="active-pill-sub" className="absolute left-0 w-1 h-6 bg-sidebar-primary rounded-r-full" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
 
-        {/* ─── Contextual: Channel Manager sub-nav ─── */}
+        {/* ─── Contextual: Channel Tools ─── */}
         <AnimatePresence>
-          {connCtx && (
+          {connCtx && !isSidebarCollapsed && (
             <motion.div
               key="cm-subnav"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="overflow-hidden"
+              className="overflow-hidden space-y-2 border-t border-sidebar-border/30 pt-4 px-1"
             >
-              {/* Section label */}
-              <div className="mt-4 mb-1 px-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-sidebar-border" />
-                  <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-sidebar-foreground/30 whitespace-nowrap">
-                    Channel Manager
-                  </span>
-                  <div className="flex-1 h-px bg-sidebar-border" />
-                </div>
-              </div>
-
-              {/* Sub-links */}
+              <p className="px-4 text-[9px] font-bold uppercase tracking-[0.15em] text-sidebar-foreground/30">
+                Channel Context
+              </p>
               {([
                 {
-                  href: `/properties/${connCtx.propertyId}/connections/${connCtx.connId}/booking`,
+                  href: `/pms/properties/${connCtx.propertyId}/connections/${connCtx.connId}/booking`,
                   label: "Booking Tables",
                   icon: Table2,
                   colorText: "text-blue-500",
-                  colorBg: "bg-blue-500/10 border border-blue-500/20",
-                  dot: "bg-blue-500",
                 },
                 {
-                  href: `/properties/${connCtx.propertyId}/connections/${connCtx.connId}/expedia`,
+                  href: `/pms/properties/${connCtx.propertyId}/connections/${connCtx.connId}/expedia`,
                   label: "Expedia Tables",
                   icon: Globe2,
                   colorText: "text-violet-500",
-                  colorBg: "bg-violet-500/10 border border-violet-500/20",
-                  dot: "bg-violet-500",
                 },
                 {
-                  href: `/properties/${connCtx.propertyId}/connections/${connCtx.connId}/reporting`,
+                  href: `/pms/properties/${connCtx.propertyId}/connections/${connCtx.connId}/reporting`,
                   label: "Reports",
                   icon: BarChart2,
                   colorText: "text-emerald-500",
-                  colorBg: "bg-emerald-500/10 border border-emerald-500/20",
-                  dot: "bg-emerald-500",
                 },
               ] as const).map((item) => {
                 const isActive = pathname.startsWith(item.href);
@@ -156,45 +255,43 @@ export function Sidebar() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all group",
+                      "flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-medium transition-all group",
                       isActive
-                        ? `${item.colorText} ${item.colorBg}`
-                        : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        ? `${item.colorText} bg-sidebar-accent`
+                        : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent"
                     )}
                   >
-                    <item.icon className={cn(
-                      "w-4 h-4",
-                      isActive ? item.colorText : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
-                    )} />
-                    <span className="flex-1">{item.label}</span>
-                    {isActive && <div className={cn("w-1.5 h-1.5 rounded-full", item.dot)} />}
+                    <item.icon className="w-4 h-4" />
+                    <span className="flex-1 truncate">{item.label}</span>
                   </Link>
                 );
               })}
-
-              {/* Back to property */}
-              <Link
-                href={`/properties/${connCtx.propertyId}`}
-                className="mt-1 flex items-center gap-2 px-4 py-2 rounded-xl text-xs text-sidebar-foreground/40 hover:text-sidebar-foreground/70 transition-colors"
-              >
-                <ChevronRight className="w-3 h-3 rotate-180 shrink-0" />
-                Back to Property
-              </Link>
             </motion.div>
           )}
         </AnimatePresence>
       </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-sidebar-border">
+      {/* Logout & Bottom Actions */}
+      <div className="p-4 space-y-2 border-t border-sidebar-border/50">
+        {!isSidebarCollapsed && (
+          <div className="flex items-center justify-around mb-2 px-2 py-1 bg-sidebar-accent/50 rounded-2xl border border-sidebar-border/30">
+            <button className="p-2 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors"><Settings className="w-4 h-4" /></button>
+            <button className="p-2 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors"><Bell className="w-4 h-4" /></button>
+            <button className="p-2 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors"><HelpCircle className="w-4 h-4" /></button>
+          </div>
+        )}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 text-sidebar-foreground/70 hover:text-rose-500 hover:bg-rose-500/5 rounded-xl transition-colors"
+          className={cn(
+            "w-full flex items-center gap-3 py-3 rounded-2xl transition-all group",
+            isSidebarCollapsed ? "justify-center px-0" : "px-4",
+            "text-sidebar-foreground/60 hover:text-rose-500 hover:bg-rose-500/5 hover:border-rose-500/20 border border-transparent"
+          )}
         >
-          <LogOut className="w-5 h-5" />
-          <span className="font-medium text-sm">Logout</span>
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!isSidebarCollapsed && <span className="font-bold text-sm">Logout</span>}
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

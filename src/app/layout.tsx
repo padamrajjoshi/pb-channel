@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { DashboardWrapper } from "@/components/dashboard/DashboardWrapper";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -27,11 +26,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <DashboardWrapper>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
-          </DashboardWrapper>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

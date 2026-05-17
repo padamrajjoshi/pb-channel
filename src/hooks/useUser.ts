@@ -26,7 +26,7 @@ export function useUserSettings() {
 }
 
 export function useAllUsers() {
-  const { data, error, isLoading, mutate } = useSWR("/user/all?app_source=pb-cms", fetcher);
+  const { data, error, isLoading, mutate } = useSWR("/user/all?app_source=pb-dashboard", fetcher);
 
   return {
     users: data || [],
